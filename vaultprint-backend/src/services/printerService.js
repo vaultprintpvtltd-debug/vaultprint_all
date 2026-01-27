@@ -1,25 +1,31 @@
-import printer from "pdf-to-printer";
+import { exec } from "child_process";
 import fs from "fs";
 
 const PRINTER_NAME = "Canon MG2500 series Printer (Copy 1)";
+const POWERSHELL_SCRIPT = "C:\\print-image.ps1";
 
-export async function printDocument(filePath) {
-  console.log("🖨️ PRINT MODE:", process.env.PRINT_MODE);
-  console.log("📄 File:", filePath);
-  console.log("🖨️ Printer:", PRINTER_NAME);
+export async function printDocument(filePath, sessionId) {
+  console.log("🖨️ PRINT START");
+  console.log("🆔 Session:", sessionId);
+  console.log("📄 Image Path:", filePath);
 
   if (!fs.existsSync(filePath)) {
-    throw new Error("File not found: " + filePath);
+    throw new Error("File does not exist");
   }
 
-  if (process.env.PRINT_MODE === "SIMULATED") {
-    console.log("🧪 SIMULATED PRINT — no paper will come out");
-    return;
-  }
+  const cmd = `powershell -ExecutionPolicy Bypass -File "${POWERSHELL_SCRIPT}" -imagePath "${filePath}" -printerName "${PRINTER_NAME}"`;
 
-  await printer.print(filePath, {
-    printer: PRINTER_NAME,
+  console.log("🧾 CMD:", cmd);
+
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err, stdout, stderr) => {
+      if (err) {
+        console.error("❌ PRINT FAILED:", stderr || err.message);
+        return reject(err);
+      }
+
+      console.log("✅ PRINT SUCCESS");
+      resolve(true);
+    });
   });
-
-  console.log("✅ Print job sent to Windows spooler");
 }

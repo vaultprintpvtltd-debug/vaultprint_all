@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, CreditCard, CheckCircle } from "lucide-react";
 import logoImage from "../../assets/logo.png";
@@ -8,29 +8,86 @@ export function MobileApp() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [otp, setOtp] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const sid = params.get("sessionId");
+
+  if (!sid) {
+    alert("Invalid QR: session missing");
+    return;
+  }
+
+  setSessionId(sid);
+  console.log("📱 Mobile using session:", sid);
+}, []);
+
+
+
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setSelectedFile(file);
   };
 
-  const proceedToPayment = () => {
-    if (!selectedFile) return;
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setStep("payment");
-    }, 800);
-  };
+  const proceedToPayment = async () => {
+  if (!selectedFile) {
+  alert("No file selected");
+  return;
+}
 
-  const processPayment = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setOtp(Math.floor(1000 + Math.random() * 900000).toString());
-      setStep("otp");
-    }, 1200);
-  };
+if (!sessionId) {
+  alert("Session not created yet");
+  return;
+}
+
+
+  setIsProcessing(true);
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+  formData.append("sessionId", sessionId);
+
+  try {
+    const res = await fetch("http://localhost:5000/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error("Upload failed");
+
+    setStep("payment");
+  } catch {
+    alert("Upload failed");
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+
+  const processPayment = async () => {
+  if (!sessionId) return;
+
+  setIsProcessing(true);
+
+  try {
+    const res = await fetch("http://localhost:5000/api/otp/generate-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+
+    const data = await res.json();
+    setOtp(data.otp);
+    setStep("otp");
+  } catch {
+    alert("OTP generation failed");
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#2c5282] to-[#1e3a5f]">

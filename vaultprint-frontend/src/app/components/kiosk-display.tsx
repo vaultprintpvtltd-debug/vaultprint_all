@@ -16,8 +16,30 @@ export function KioskDisplay() {
   const [showOtpEntry, setShowOtpEntry] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isVerified, setIsVerified] = useState(false);
+  const params = new URLSearchParams(window.location.search);
 
-  const kioskUrl = 'https://www.vaultprintpvtltd.online/';
+  const [sessionId, setSessionId] = useState<string>("");
+  const kioskUrl = sessionId
+  ? `http://localhost:5173/mobile?sessionId=${sessionId}`
+  : "";
+
+
+useEffect(() => {
+  const createSession = async () => {
+    const res = await fetch("http://localhost:5000/api/session", {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    setSessionId(data.sessionId);
+    console.log("🖥️ Kiosk session created:", data.sessionId);
+  };
+
+  createSession();
+}, []);
+
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -27,21 +49,66 @@ export function KioskDisplay() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length <= 1 && /^\d*$/.test(value)) {
-      const newOtp = [...otp];
-      newOtp[index] = value;
-      setOtp(newOtp);
 
-      if (value && index < 5) {
-        document.getElementById(`otp-${index + 1}`)?.focus();
-      }
 
-      if (newOtp.every((digit) => digit !== '') && !isVerified) {
-        setTimeout(() => setIsVerified(true), 500);
-      }
+
+const handleOtpChange = async (index: number, value: string) => {
+  // allow only single digit
+  if (!/^\d?$/.test(value)) return;
+
+  const newOtp = [...otp];
+  newOtp[index] = value;
+  setOtp(newOtp);
+
+  // auto-focus next box
+  if (value && index < 5) {
+    document.getElementById(`otp-${index + 1}`)?.focus();
+  }
+
+  // guard conditions
+  if (!sessionId) {
+    console.error("❌ sessionId missing");
+    return;
+  }
+
+  if (!newOtp.every((d) => d !== "") || isVerified) return;
+
+  try {
+    const res = await fetch("http://localhost:5000/api/otp/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        otp: newOtp.join(""),
+      }),
+    });
+
+    // 🛑 handle non-JSON responses (404 / HTML / doctype)
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error("Server error. Please try again.");
     }
-  };
+
+    if (!res.ok) {
+      throw new Error(data.message || "Invalid OTP");
+    }
+
+    console.log("✅ OTP VERIFIED");
+    setIsVerified(true);
+
+  } catch (err: any) {
+    console.error("❌ OTP VERIFY FAILED:", err.message);
+    alert(err.message || "Invalid OTP");
+    setOtp(["", "", "", "", "", ""]);
+    document.getElementById("otp-0")?.focus();
+  }
+};
+
+
+
+
 
   const handleKeyDown = (
     index: number,

@@ -1,36 +1,14 @@
 import mongoose from "mongoose";
 
-const fileSchema = new mongoose.Schema({
-  originalName: String,
-  storedName: String,
-  pages: Number,
-  price: Number,
-  options: {
-    pages: Number,
-    color: Boolean,
-    duplex: Boolean,
-    copies: Number,
-  },
-});
-
-const printSessionSchema = new mongoose.Schema({
+const PrintSessionSchema = new mongoose.Schema({
   sessionId: { type: String, required: true, unique: true },
-  status: { type: String, default: "WAITING" },
 
-  otp: String,
-  otpExpiresAt: Date,
-  verified: {
-    type: Boolean,
-    default: false,
-  },
+  filePath: { type: String }, // 🔥 REQUIRED FOR PRINT
 
-  file: fileSchema,
+  otp: { type: String },
+  otpExpiresAt: { type: Date },
+  verified: { type: Boolean, default: false },
 
-  printStatus: {
-    type: String,
-    enum: ["PENDING", "PRINTED"],
-    default: "PENDING",
-  },
-});
+}, { timestamps: true });
 
-export default mongoose.model("PrintSession", printSessionSchema);
+export default mongoose.model("PrintSession", PrintSessionSchema);

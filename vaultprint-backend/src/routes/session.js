@@ -1,39 +1,22 @@
 import express from "express";
-import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 import PrintSession from "../models/PrintSession.js";
 
 const router = express.Router();
 
-/* CREATE SESSION */
+// CREATE SESSION
 router.post("/", async (req, res) => {
   try {
-    const sessionId = crypto.randomUUID();
-
-    await PrintSession.create({
-      sessionId,
-      status: "WAITING",
+    const session = await PrintSession.create({
+      sessionId: uuidv4(),
+      status: "CREATED",
     });
 
-    res.json({ sessionId });
+    res.json({ sessionId: session.sessionId });
   } catch (err) {
-    console.error("❌ Session creation failed:", err);
-    res.status(500).json({ error: "Failed to create session", details: err.message });
+    console.error("Session create error:", err);
+    res.status(500).json({ error: "Failed to create session" });
   }
 });
-
-/* SESSION STATUS */
-router.get("/:sessionId/status", async (req, res) => {
-  const session = await PrintSession.findOne({
-    sessionId: req.params.sessionId,
-  });
-
-  if (!session) {
-    return res.status(404).json({ error: "Session not found" });
-  }
-
-  res.json({ status: session.status });
-});
-
-
 
 export default router;
